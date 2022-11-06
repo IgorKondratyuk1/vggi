@@ -1,18 +1,23 @@
 'use strict';
+let gl;                         // The webgl context.
+let surface;                    // A surface model
+let shProgram;                  // A shader program
+let spaceball;                  // A SimpleRotator object that lets the user rotate the view by mouse.
 
+// Init data for calculation figure coordinates
 const tStep = Math.PI / 180 * 40;
 const aStep = Math.PI / 180 * 13;
 const size = Math.PI / 2;
 const generalColor = [0.5,0.9,0.2,1];
-let allCoordinates = [];
+let figureCoordinates = [];
 
-const k = 15;
 let r = 1;
 let c = 2;
 let d = 1;
 let teta = Math.PI/2;
 let a0 = 0;
 
+// Functions for calculation X,Y,Z coordinates for surface
 function getX (t,a, param = 15) {
     return (r * Math.cos(a) - (r * (a0 - a) + t * Math.cos(teta) - c * Math.sin(d * t) * Math.sin(teta)) * Math.sin(a)) / param;
 }
@@ -32,12 +37,6 @@ function drawElement(type, color, vertices) {
     gl.drawArrays(type, 0, vertices.length / 3);
 }
 
-// ---------------------------
-
-let gl;                         // The webgl context.
-let surface;                    // A surface model
-let shProgram;                  // A shader program
-let spaceball;                  // A SimpleRotator object that lets the user rotate the view by mouse.
 
 function deg2rad(angle) {
     return angle * Math.PI / 180;
@@ -124,12 +123,13 @@ function draw() {
     //console.log(c1);
     //c1.forEach( c => drawElement(gl.LINE_STRIP, generalColor, c));
 
-    CreateSurface1();
-    CreateSurface2();
+    CreateHPofSurface();
+    CreateVPofSurface();
     DrawAxis();
 }
 
-function CreateSurface1()
+// Draw horizontal part of figure
+function CreateHPofSurface()
 {
     let m = 0;
     for (let t = -15; t <= 15; t += tStep) {
@@ -137,13 +137,27 @@ function CreateSurface1()
 
         for (let a = 6; a <= 10 * size; a += aStep) {
             const generatedCoords = [getX(t, a, 15), getY(t, a, 15), getZ(t, 30)];
-
             coords = [...coords, ...generatedCoords];
         }
 
         drawElement(gl.LINE_STRIP, generalColor, coords);
 
-        allCoordinates[m++] = [...coords];
+        figureCoordinates[m++] = [...coords];
+        coords = [];
+    }
+}
+
+// Draw vertical part of figure
+function CreateVPofSurface()
+{
+    for (let j = 0; j < figureCoordinates[0].length; j += 3) {
+        let coords = [];
+
+        for (let k = 0; k < figureCoordinates.length; k++) {
+            coords = [...coords, figureCoordinates[k][j], figureCoordinates[k][j + 1], figureCoordinates[k][j + 2]];
+        }
+
+        drawElement(gl.LINE_STRIP, generalColor, coords);
         coords = [];
     }
 }
@@ -159,27 +173,12 @@ function CreateSurface1()
 //
 //             coords = [...coords, ...generatedCoords];
 //         }
-//         allCoordinates[m++] = [...coords];
+//         figureCoordinates[m++] = [...coords];
 //         coords = [];
 //     }
 //
-//     return allCoordinates;
+//     return figureCoordinates;
 // }
-
-function CreateSurface2()
-{
-    // Draw vertical meridians
-    for (let j = 0; j < allCoordinates[0].length; j += 3) {
-        let coords = [];
-
-        for (let k = 0; k < allCoordinates.length; k++) {
-            coords = [...coords, allCoordinates[k][j], allCoordinates[k][j + 1], allCoordinates[k][j + 2]];
-        }
-
-        drawElement(gl.LINE_STRIP, generalColor, coords);
-        coords = [];
-    }
-}
 
 function DrawAxis() {
     gl.lineWidth(5);

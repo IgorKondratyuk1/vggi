@@ -1,21 +1,20 @@
 'use strict';
+
 let gl;                         // The webgl context.
 let surface;                    // A surface model
 let shProgram;                  // A shader program
 let spaceball;                  // A SimpleRotator object that lets the user rotate the view by mouse.
 
-// Init data for calculation figure coordinates
-const tStep = Math.PI / 180 * 40;
-const aStep = Math.PI / 180 * 13;
-const size = Math.PI / 2;
-const generalColor = [0.5,0.9,0.2,1];
-let figureCoordinates = [];
+function deg2rad(angle) {
+    return angle * Math.PI / 180;
+}
 
 let r = 1;
 let c = 2;
 let d = 1;
 let teta = Math.PI/2;
 let a0 = 0;
+const generalColor = [0.5,0.9,0.2,1];
 
 // Functions for calculation X,Y,Z coordinates for surface
 function getX (t,a, param = 15) {
@@ -28,35 +27,22 @@ function getZ (t, height = 15) {
     return (t * Math.sin(teta) + c * Math.sin(d * t) * Math.cos(teta)) / (-height);
 }
 
-function drawElement(type, color, vertices) {
-    gl.uniform4fv(shProgram.iColor, color);
-    gl.enableVertexAttribArray(shProgram.iAttribVertex);
-    gl.bindBuffer(gl.ARRAY_BUFFER, shProgram.iVertexBuffer);
-    gl.bufferData(gl.ARRAY_BUFFER, new Float32Array(vertices), gl.STREAM_DRAW);
-    gl.vertexAttribPointer(shProgram.iAttribVertex, 3, gl.FLOAT, false, 0, 0);
-    gl.drawArrays(type, 0, vertices.length / 3);
-}
-
-
 function deg2rad(angle) {
     return angle * Math.PI / 180;
 }
-
 
 // Constructor
 function Model(name) {
     this.name = name;
     this.iVertexBuffer = gl.createBuffer();
     this.count = 0;
-    this.
 
-    this.BufferData = function(verticesArr) {
+    this.BufferData = function(vertices) {
 
         gl.bindBuffer(gl.ARRAY_BUFFER, this.iVertexBuffer);
-        verticesArr.forEach(vertices => {
-            gl.bufferData(gl.ARRAY_BUFFER, new Float32Array(vertices), gl.STREAM_DRAW);
-            this.count = vertices.length/3;
-        })
+        gl.bufferData(gl.ARRAY_BUFFER, new Float32Array(vertices), gl.STREAM_DRAW);
+
+        this.count = vertices.length/3;
     }
 
     this.Draw = function() {
@@ -90,7 +76,7 @@ function ShaderProgram(name, program) {
 
 
 /* Draws a colored cube, along with a set of coordinate axes.
- * (Note that the use of the above draw function is not an efficient
+ * (Note that the use of the above drawPrimitive function is not an efficient
  * way to draw with WebGL.  Here, the geometry is so simple that it doesn't matter.)
  */
 function draw() {
@@ -116,78 +102,26 @@ function draw() {
     gl.uniformMatrix4fv(shProgram.iModelViewProjectionMatrix, false, modelViewProjection );
 
     /* Draw the six faces of a cube, with different colors. */
-    gl.uniform4fv(shProgram.iColor, [1,1,0,1] );
+    gl.uniform4fv(shProgram.iColor, generalColor);
 
-    //surface.Draw();
-    //let c1 = CreateSurface1Data();
-    //console.log(c1);
-    //c1.forEach( c => drawElement(gl.LINE_STRIP, generalColor, c));
-
-    CreateHPofSurface();
-    CreateVPofSurface();
-    DrawAxis();
+    surface.Draw();
 }
 
-// Draw horizontal part of figure
-function CreateHPofSurface()
-{
-    let m = 0;
-    for (let t = -15; t <= 15; t += tStep) {
-        let coords = [];
+const CreateSurfaceData = () => {
+    let vertexList = [];
 
-        for (let a = 6; a <= 10 * size; a += aStep) {
-            const generatedCoords = [getX(t, a, 15), getY(t, a, 15), getZ(t, 30)];
-            coords = [...coords, ...generatedCoords];
+    const step = 0.1
+
+    for (let t = -15; t <= 15; t += step) {
+        for (let a = 0; a <= 15; a += step) {
+            const tNext = t + step;
+            vertexList.push(getX(t, a, 10), getY(t, a, 10), getZ(t, 20));
+            vertexList.push(getX(tNext, a, 10), getY(tNext, a, 10), getZ(tNext, 20));
         }
-
-        drawElement(gl.LINE_STRIP, generalColor, coords);
-
-        figureCoordinates[m++] = [...coords];
-        coords = [];
     }
+
+    return vertexList;
 }
-
-// Draw vertical part of figure
-function CreateVPofSurface()
-{
-    for (let j = 0; j < figureCoordinates[0].length; j += 3) {
-        let coords = [];
-
-        for (let k = 0; k < figureCoordinates.length; k++) {
-            coords = [...coords, figureCoordinates[k][j], figureCoordinates[k][j + 1], figureCoordinates[k][j + 2]];
-        }
-
-        drawElement(gl.LINE_STRIP, generalColor, coords);
-        coords = [];
-    }
-}
-
-// function CreateSurface1Data()
-// {
-//     let m = 0;
-//     for (let t = -15; t <= 15; t += tStep) {
-//         let coords = [];
-//
-//         for (let a = 6; a <= 10 * size; a += aStep) {
-//             const generatedCoords = [getX(t, a, 15), getY(t, a, 15), getZ(t, 30)];
-//
-//             coords = [...coords, ...generatedCoords];
-//         }
-//         figureCoordinates[m++] = [...coords];
-//         coords = [];
-//     }
-//
-//     return figureCoordinates;
-// }
-
-function DrawAxis() {
-    gl.lineWidth(5);
-    drawElement(gl.LINES, [1, 0, 0, 1], [-9, 0, 0, 9, 0, 0]);
-    drawElement(gl.LINES, [0, 1, 0, 1], [0, -9, 0, 0, 9, 0]);
-    drawElement(gl.LINES, [0, 0, 1, 1], [0, 0, -9, 0, 0, 9]);
-    gl.lineWidth(1);
-}
-
 
 
 /* Initialize the WebGL context. Called from init() */
@@ -201,10 +135,8 @@ function initGL() {
     shProgram.iModelViewProjectionMatrix = gl.getUniformLocation(prog, "ModelViewProjectionMatrix");
     shProgram.iColor                     = gl.getUniformLocation(prog, "color");
 
-    shProgram.iVertexBuffer = gl.createBuffer();
-
-    // surface = new Model('Surface');
-    // surface.BufferData(CreateSurface1Data());
+    surface = new Model('Surface');
+    surface.BufferData(CreateSurfaceData());
 
     gl.enable(gl.DEPTH_TEST);
 }

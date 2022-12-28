@@ -324,12 +324,14 @@ window.addEventListener("keydown", (event) => {
   const step = 0.1
   switch (event.key) {
     case 'ArrowLeft':
-      onArrowLeftKey()
+        console.log('left');
+        onArrowLeftKey()
       break;
     case 'ArrowRight':
       onArrowRightKey()
       break;
     case 'w':
+        console.log('w');
       point.y = point.y + step;
       draw();
       break;

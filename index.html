@@ -1,20 +1,18 @@
 <!DOCTYPE html>
-<html>
-<head>
-    <meta http-equiv="Content-Type" content="text/html; charset=UTF-8">
+<html><head><meta http-equiv="Content-Type" content="text/html; charset=UTF-8">
 
 
-    <title>PA#2</title>
-    <style>
-        body {
-            background-color: #EEEEEE;
-        }
-    </style>
+<title>CGW</title>
+<style>
+    body {
+        background-color: #EEEEEE;
+    }
+</style>
 
-    <script src="./Utils/trackball-rotator.js"></script>
-    <script src="./Utils/m4.js"></script>
-    <script src="./shader.js"></script>
-    <script src="./main.js"></script>
+<script src="./Utils/trackball-rotator.js"></script>
+<script src="./Utils/m4.js"></script>
+<script src="./shader.js"></script>
+<script src="./main.js"></script>
 
 </head>
 <body onload="init()">
@@ -22,10 +20,14 @@
 <h2>TR-23 Igor Kondratiuk</h2>
 <h3>Variant 12. Monge Surface with Cylindrical Directrix Surface and with a Sinusoid as Meridian</h3>
 
+<div>
+    <label for="rotAngle">Angle of rotation:</label>
+    <input id="rotAngle" type="range" min="-180" max="180" step="1" onchange="draw()" />
+</div>
+
 <div id="canvas-holder">
-    <canvas width="600" height="600" id="webglcanvas" style="background-color:red"></canvas>
+   <canvas width="600" height="600" id="webglcanvas" style="background-color:red"></canvas>
 </div>
 
 
-</body>
-</html>
+</body></html>

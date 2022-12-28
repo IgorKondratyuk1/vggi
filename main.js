@@ -5,11 +5,13 @@ let shProgram;                  // A shader program
 let spaceball;                  // A SimpleRotator object that lets the user rotate the view by mouse.
 let parabolaValue = 0.0;
 
+let point = { x: 0, y: 0 };
+
 const scale = 8;
 
 const calcParabola = () => {
-    let TParam = Math.sin(parabolaValue) * 3.6;
-    return [TParam * scale, 9 * scale, (-10 + (TParam * TParam)) * scale];
+  let TParam = Math.sin(parabolaValue) * 3.6;
+  return [TParam * scale, 9 * scale, (-10 + (TParam * TParam)) * scale];
 }
 
 // Init data for calculation figure coordinates
@@ -43,30 +45,38 @@ function Model(name) {
     this.name = name;
     this.iVertexBuffer = gl.createBuffer();
     this.iNormalBuffer = gl.createBuffer();
+    this.iTextureBuffer = gl.createBuffer();
     this.count = 0;
 
-    this.BufferData = function({ vertexList, normalsList }) {
+    this.BufferData = function({ vertexList, normalsList, textureList }) {
 
-        gl.bindBuffer(gl.ARRAY_BUFFER, this.iVertexBuffer);
-        gl.bufferData(gl.ARRAY_BUFFER, new Float32Array(vertexList), gl.STREAM_DRAW);
+      gl.bindBuffer(gl.ARRAY_BUFFER, this.iVertexBuffer);
+      gl.bufferData(gl.ARRAY_BUFFER, new Float32Array(vertexList), gl.STREAM_DRAW);
+     
+      gl.bindBuffer(gl.ARRAY_BUFFER, this.iNormalBuffer)
+      gl.bufferData(gl.ARRAY_BUFFER, new Float32Array(normalsList), gl.STREAM_DRAW);
 
-        gl.bindBuffer(gl.ARRAY_BUFFER, this.iNormalBuffer)
-        gl.bufferData(gl.ARRAY_BUFFER, new Float32Array(normalsList), gl.STREAM_DRAW);
+      gl.bindBuffer(gl.ARRAY_BUFFER, this.iTextureBuffer);
+      gl.bufferData(gl.ARRAY_BUFFER, new Float32Array(textureList), gl.STREAM_DRAW);
 
-        this.count = vertexList.length/3;
+      this.count = vertexList.length/3;
     }
 
     this.Draw = function() {
 
-        gl.bindBuffer(gl.ARRAY_BUFFER, this.iVertexBuffer);
-        gl.vertexAttribPointer(shProgram.iAttribVertex, 3, gl.FLOAT, false, 0, 0);
-        gl.enableVertexAttribArray(shProgram.iAttribVertex);
+      gl.bindBuffer(gl.ARRAY_BUFFER, this.iVertexBuffer);
+      gl.vertexAttribPointer(shProgram.iAttribVertex, 3, gl.FLOAT, false, 0, 0);
+      gl.enableVertexAttribArray(shProgram.iAttribVertex);
 
-        gl.bindBuffer(gl.ARRAY_BUFFER, this.iNormalBuffer);
-        gl.vertexAttribPointer(shProgram.iNormalVertex, 3, gl.FLOAT, true, 0, 0);
-        gl.enableVertexAttribArray(shProgram.iNormalVertex);
+      gl.bindBuffer(gl.ARRAY_BUFFER, this.iNormalBuffer);
+      gl.vertexAttribPointer(shProgram.iNormalVertex, 3, gl.FLOAT, true, 0, 0);
+      gl.enableVertexAttribArray(shProgram.iNormalVertex);
 
-        gl.drawArrays(gl.TRIANGLE_STRIP, 0, this.count);
+      gl.bindBuffer(gl.ARRAY_BUFFER, this.iTextureBuffer);
+      gl.vertexAttribPointer(shProgram.iTextureCoords, 2, gl.FLOAT, false, 0, 0);
+      gl.enableVertexAttribArray(shProgram.iTextureCoords);
+
+      gl.drawArrays(gl.TRIANGLE_STRIP, 0, this.count);
     }
 }
 
@@ -96,6 +106,13 @@ function ShaderProgram(name, program) {
 
     this.iLimit = -1;
 
+    // textCoords
+    this.iTextureCoords = -1;
+    this.iTMU = -1;
+
+    this.iFAngleRad = -1;
+    this.iFPoint = -1;
+
     this.Use = function() {
         gl.useProgram(this.prog);
     }
@@ -107,6 +124,7 @@ function ShaderProgram(name, program) {
  * way to draw with WebGL.  Here, the geometry is so simple that it doesn't matter.)
  */
 function draw() {
+    const angle = document.getElementById('rotAngle').value;
     gl.clearColor(0,0,0,1);
     gl.clear(gl.COLOR_BUFFER_BIT | gl.DEPTH_BUFFER_BIT);
 
@@ -136,51 +154,62 @@ function draw() {
     gl.uniformMatrix4fv(shProgram.iWorldInverseTranspose, false, worldInverseTransposeMatrix);
     gl.uniformMatrix4fv(shProgram.iModelViewProjectionMatrix, false, modelViewProjection );
     gl.uniformMatrix4fv(shProgram.iWorldMatrix, false, matAccum1 );
-
+    
     gl.uniform4fv(shProgram.iColor, generalColor );
+
+    gl.uniform1f(shProgram.iFAngleRad, deg2rad(+angle));
+  
+    gl.uniform2fv(shProgram.iFPoint, [getX(point.x, point.y), getY(point.x, point.y)]);
+  
+    gl.uniform1i(shProgram.iTMU, 0);
 
     surface.Draw();
 }
 
 function CreateSurfaceData() {
-    let vertexList = [];
-    let normalsList = [];
+  let vertexList = [];
+  let normalsList = [];
+  let textureList = [];
 
-    let deltaT = 0.0005;
-    let deltaA = 0.0005;
+  let deltaT = 0.0005;
+  let deltaA = 0.0005;
 
-    const step = 0.1
+  const step = 0.1
 
-    for (let t = -15; t <= 15; t += step) {
-        for (let a = 0; a <= 15; a += step) {
-            const tNext = t + step;
-            vertexList.push(getX(t, a, 10), getY(t, a, 10), getZ(t, 20));
-            vertexList.push(getX(tNext, a, 10), getY(tNext, a, 10), getZ(tNext, 20));
+  for (let t = -15; t <= 15; t += step) {
+    for (let a = 0; a <= 15; a += step) {
+        const tNext = t + step; 
+        vertexList.push(getX(t, a, 10), getY(t, a, 10), getZ(t, 20));
+        vertexList.push(getX(tNext, a, 10), getY(tNext, a, 10), getZ(tNext, 20));
 
-            // Normals
-            let result = m4.cross(calcDerT(t, a, deltaT), calcDerA(t, a, deltaA));
-            normalsList.push(result[0], result[1], result[2])
+        // Normals
+        let result = m4.cross(calcDerT(t, a, deltaT), calcDerA(t, a, deltaA));
+        normalsList.push(result[0], result[1], result[2])
 
-            result = m4.cross(calcDerT(tNext, a, deltaT), calcDerA(tNext, a, deltaA));
-            normalsList.push(result[0], result[1], result[2]);
-        }
+        result = m4.cross(calcDerT(tNext, a, deltaT), calcDerA(tNext, a, deltaA));
+        normalsList.push(result[0], result[1], result[2]);
+
+        textureList.push(...calcTextureTA(t, a));
+        textureList.push(...calcTextureTA(tNext, a + step));
     }
+  }
 
-    return { vertexList, normalsList };
+  return { vertexList, normalsList, textureList };
 }
 
 const calcDerT = (t, a, tDelta) => ([
-    (getX(t + tDelta, a, 10) - getX(t, a, 10)) / deg2rad(tDelta),
-    (getY(t + tDelta, a, 10) - getY(t, a, 10)) / deg2rad(tDelta),
-    (getZ(t + tDelta, a) - getZ(t, a)) / deg2rad(tDelta),
+  (getX(t + tDelta, a, 10) - getX(t, a, 10)) / deg2rad(tDelta),
+  (getY(t + tDelta, a, 10) - getY(t, a, 10)) / deg2rad(tDelta),
+  (getZ(t + tDelta, a) - getZ(t, a)) / deg2rad(tDelta),
 ])
 
 const calcDerA = (t, a, aDelta) => ([
-    (getX(t, a + aDelta, 10) - getX(t, a, 10)) / deg2rad(aDelta),
-    (getY(t, a + aDelta, 10) - getY(t, a, 10)) / deg2rad(aDelta),
-    (getZ(t, a + aDelta) - getZ(t, a)) / deg2rad(aDelta),
+  (getX(t, a + aDelta, 10) - getX(t, a, 10)) / deg2rad(aDelta),
+  (getY(t, a + aDelta, 10) - getY(t, a, 10)) / deg2rad(aDelta),
+  (getZ(t, a + aDelta) - getZ(t, a)) / deg2rad(aDelta),
 ])
 
+const calcTextureTA = (t, a) => ([(t + 15) / 30, a / 15]);
 
 /* Initialize the WebGL context. Called from init() */
 function initGL() {
@@ -203,9 +232,18 @@ function initGL() {
 
     shProgram.iViewWorldPosition         = gl.getUniformLocation(prog, "ViewWorldPosition");
 
+    shProgram.iTextureCoords             = gl.getAttribLocation(prog, 'textureCoords');
+    shProgram.iTMU                       = gl.getUniformLocation(prog, 'uTexture');
+
+    shProgram.iFAngleRad                 = gl.getUniformLocation(prog, 'fAngleRad');
+    shProgram.iFPoint                    = gl.getUniformLocation(prog, 'fPoint');
 
     surface = new Model('Surface');
     surface.BufferData(CreateSurfaceData());
+
+    LoadTexture();
+
+    gl.enable(gl.DEPTH_TEST);
 }
 
 
@@ -273,24 +311,55 @@ function init() {
 }
 
 const onArrowLeftKey = () => {
-    parabolaValue -= 0.1;
-    draw();
+  parabolaValue -= 0.1;
+  draw();
 }
 
 const onArrowRightKey = () => {
-    parabolaValue += 0.1;
-    draw();
+  parabolaValue += 0.1;
+  draw();
 }
 
-window.addEventListener("keydown", (event) => {
-    switch (event.key) {
-        case 'ArrowLeft':
-            onArrowLeftKey()
-            break;
-        case 'ArrowRight':
-            onArrowRightKey()
-            break;
-        default:
-            break;
-    }
+window.addEventListener("keydown", (event) => { 
+  const step = 0.1
+  switch (event.key) {
+    case 'ArrowLeft':
+      onArrowLeftKey()
+      break;
+    case 'ArrowRight':
+      onArrowRightKey()
+      break;
+    case 'w':
+      point.y = point.y + step;
+      draw();
+      break;
+    case 's':
+      point.y = point.y - step;
+      draw();
+      break;
+    case 'd':
+      point.x = point.x + step;
+      draw();
+      break;
+    case 'a':
+      point.x = point.x - step;
+      draw();
+      break;
+    default:
+      break;
+  }
 });
+
+function LoadTexture() {
+  const image = new Image();
+  image.crossOrigin = 'anonymous';
+  image.src = 'https://www.the3rdsequence.com/texturedb/download/165/texture/jpg/1024/plastic+stripes-1024x1024.jpg';
+  image.onload = () => {
+    const texture = gl.createTexture();
+    gl.bindTexture(gl.TEXTURE_2D, texture);
+    gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, gl.LINEAR);
+    gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MAG_FILTER, gl.LINEAR);  
+    gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA, gl.RGBA, gl.UNSIGNED_BYTE, image);
+    draw();
+  };
+}
